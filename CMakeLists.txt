@@ -96,6 +96,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_library(REALTIME_LIB rt)
 if (REALTIME_LIB)
     list(APPEND EXTERNAL_LIBS PRIVATE rt)
+    # 把rt库加入到EXTERNAL_LIBS中，  CMake 中，这是用于指定链接库时的范围。在这种情况下，
+    # PRIVATE 是链接库的作用域标志，它表示 rt 库将仅与当前目标相关联，并且不会被传递给依赖于当前目标的其他目标。
 endif()
 
 if (CMAKE_HOST_APPLE)
@@ -112,8 +114,10 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "do not build shared libs by default")
 
 if(ENABLE_OPENSSL)
     find_package(OpenSSL REQUIRED)
+    # 通过 find_package，CMake 可以找到并导入其他项目或库的配置文件，从而简化了项目的构建和依赖管理。
 endif()
 
+# include 是用于包含其他 CMake 脚本的命令
 include(cmake/gtest.cmake)
 include(cmake/glog.cmake)
 include(cmake/snappy.cmake)
@@ -165,6 +169,8 @@ string(STRIP "${GIT_SHA}" GIT_SHA)
 if ((PROJECT_VERSION STREQUAL "unstable") AND (GIT_SHA STREQUAL ""))
 	message(WARNING "It is highly recommended to build the unstable branch in a Git repo")
 endif ()
+∂
+# 用于在构建过程生成文件，渲染模板文件
 configure_file(src/version.h.in ${PROJECT_BINARY_DIR}/version.h)
 
 if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
@@ -173,6 +179,7 @@ if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR (CMAKE_CXX_COMPILER_ID STREQUAL "C
     endif()
 
     if(ENABLE_STATIC_LIBSTDCXX)
+        # 尝试编译一个简单的测试项目，并根据编译结果设置变量的值
         try_compile(FOUND_STATIC_LIBSTDCXX ${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/cmake/checks/static_libstdcxx.cc
             LINK_OPTIONS -static-libstdc++ CXX_STANDARD 11)
 
@@ -185,25 +192,31 @@ if ((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR (CMAKE_CXX_COMPILER_ID STREQUAL "C
 endif()
 
 # kvrocks objects target
+# 获取目录下的所有子目录和文件
 file(GLOB_RECURSE KVROCKS_SRCS src/*.cc)
 list(FILTER KVROCKS_SRCS EXCLUDE REGEX src/main.cc)
 
 add_library(kvrocks_objs OBJECT ${KVROCKS_SRCS})
 
+# 用于为目标（例如可执行目标或库目标）指定【头文件】搜索路径的命令
 target_include_directories(kvrocks_objs PUBLIC src src/common ${PROJECT_BINARY_DIR} ${Backtrace_INCLUDE_DIR})
+# 是一个用于为目标指定所需的 C++ 标准版本的命令。它用于告诉 CMake 编译器需要以特定的 C++ 标准版本来编译目标的源代码
 target_compile_features(kvrocks_objs PUBLIC cxx_std_17)
+# 指定【编译选项】
 target_compile_options(kvrocks_objs PUBLIC -Wall -Wpedantic -Wsign-compare -Wreturn-type -fno-omit-frame-pointer -Werror=unused-result)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(kvrocks_objs PUBLIC -Wno-pedantic)
 elseif((CMAKE_CXX_COMPILER_ID STREQUAL "Clang") OR (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang"))
     target_compile_options(kvrocks_objs PUBLIC -Wno-gnu-statement-expression)
 endif()
+# 为目标指定链接库
 target_link_libraries(kvrocks_objs PUBLIC -fno-omit-frame-pointer)
 target_link_libraries(kvrocks_objs PUBLIC ${EXTERNAL_LIBS})
 if(ENABLE_OPENSSL)
     target_compile_definitions(kvrocks_objs PUBLIC ENABLE_OPENSSL)
 endif()
 if(ENABLE_NEW_ENCODING)
+    # 为目标指定编译定义的命令
     target_compile_definitions(kvrocks_objs PUBLIC METADATA_ENCODING_VERSION=1)
 else()
     target_compile_definitions(kvrocks_objs PUBLIC METADATA_ENCODING_VERSION=0)
@@ -229,16 +242,19 @@ if(ENABLE_IPO)
 endif()
 
 # kvrocks main target
+# 创建可执行目标文件
 add_executable(kvrocks src/main.cc)
 target_link_libraries(kvrocks PRIVATE kvrocks_objs ${EXTERNAL_LIBS})
 
 # kvrocks2redis sync tool
+# 顺带编译个工具kvrocks2redis
 file(GLOB KVROCKS2REDIS_SRCS utils/kvrocks2redis/*.cc)
 add_executable(kvrocks2redis ${KVROCKS2REDIS_SRCS})
 
 target_link_libraries(kvrocks2redis PRIVATE kvrocks_objs ${EXTERNAL_LIBS})
 
 # kvrocks unit tests
+# 顺带编译个工具unittest
 file(GLOB_RECURSE TESTS_SRCS tests/cppunit/*.cc)
 add_executable(unittest ${TESTS_SRCS})
 target_include_directories(unittest PRIVATE tests/cppunit)
